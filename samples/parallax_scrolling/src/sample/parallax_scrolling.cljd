@@ -1,0 +1,79 @@
+(ns sample.parallax-scrolling
+  "Faithful port of https://docs.flutter.dev/cookbook/effects/parallax-scrolling"
+  (:require ["package:flutter/material.dart" :as m]
+            [cljd.flutter.alpha :as f]))
+
+(def url-prefix "https://docs.flutter.dev/cookbook/img-files/effects/parallax")
+
+(def locations
+  [(m/Location
+    :name "Mount Rushmore"
+    :place "U.S.A"
+    :image-url (str url-prefix "/01-mount-rushmore.jpg"))
+   (m/Location
+    :name "Gardens By The Bay"
+    :place "Singapore"
+    :image-url (str url-prefix "/02-singapore.jpg"))
+   (m/Location
+    :name "Machu Piccu"
+    :place "Peru"
+    :image-url (str url-prefix "03-machu-picchu.jpg"))
+   (m/Location
+    :name "Viztnau"
+    :place "Switzerland"
+    :image-url (str url-prefix "/04-vitznau.jpg"))
+   (m/Location
+    :name "Bali"
+    :place "Indonesia"
+    :image-url (str url-prefix "/05-bali.jpg"))
+   (m/Location
+    :name "Mexico City"
+    :place "Mexico"
+    :image-url (str url-prefix "/06-mexico-city.jpg"))
+   (m/Location
+    :name "Cairo"
+    :place "Egypt"
+    :image-url (str url-prefix "/07-cairo.jpg"))])
+
+(defn build-parallax-background
+  [ctx image-url]
+  (m/Flow
+   :delegate
+   (m/ParallaxFlowDelegate
+    :scrollable)))
+
+(defn build-gradient
+  [])
+
+(defn build-title-and-subtitle
+  [])
+
+(defn location-list-item ;; TODO: f/nest
+  [image-url name place]
+  (f/widget
+   :context ctx
+   (m/Padding
+    :padding ^:const (m.EdgeInsets/symmetric :horizontal 24 :vertical 16)
+    :child
+    (m/AspectRatio
+     :aspectRatio 16 / 9
+     :child
+     (m/ClipRRect
+      :borderRadius (m.BorderRadius/circular 16)
+      :child (m/Stack :children
+                      [(build-parallax-background ctx image-url)
+                       (build-gradient)
+                       (build-title-and-subtitle)]))))))
+
+(def example-parallax
+  (m/SingleChildScrollView
+   :child
+   (m/Column
+    :children map #(location-list-item (.image-url %) (.name %) (.country %)) locations)))
+
+(defn main []
+  (m/runApp
+   (m/MaterialApp
+    :debugShowCheckedModeBanner false
+    :home
+    (m/Scaffold :body (m/Center :child example-parallax)))))
