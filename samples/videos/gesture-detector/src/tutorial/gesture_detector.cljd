@@ -1,0 +1,23 @@
+(ns tutorial.gesture-detector
+  (:require ["package:flutter/material.dart" :as m]
+            [cljd.flutter.alpha :as f]
+            ["package:flutter/gesture.dart" :as g]))
+
+(def gesture-demo
+  (f/widget
+   (m/GestureDetector
+    :onPanStart (fn [^g/DragStartDetails details] (dart:core/print (str "start! " (.localPosition details))))
+    :onPanUpdate (fn [^g/DragUpdateDetails details] (dart:core/print (str "moving.. ") (.localPosition details)))
+    :child
+    #_(m/CustomPaint
+     :size (m/Size double/infinity double/infinity)
+     :painter
+     (reify :extends m/CustomPainter
+       (paint [this canvas size]
+         (let [paint (doto (m/Paint)
+                       (-> .-color (set! m.Colors/grey))
+                       (-> .-style (set! m.PaintingStyle/fill)))]
+           (.drawCircle canvas ))))))))
+
+(defn main []
+  (m/runApp (m/MaterialApp :title "Gesture demo" :home (m/Scaffold :body gesture-demo))))
