@@ -1,0 +1,35 @@
+(ns tutorial.gesture-detector
+  (:require ["package:flutter/material.dart" :as m]
+            [cljd.flutter.alpha :as f]
+            ["package:flutter/gestures.dart" :as g]))
+
+(def radius 20)
+
+(def gesture-demo
+(f/widget
+ :state [app-state {:p1 (m/Offset 100 100) :delta nil}]
+ (m/GestureDetector
+  :onPanStart 
+  (fn [^g/DragStartDetails details] 
+    (let [pointer (.localPosition details)
+          delta (.- pointer (:p1 @app-state))]
+      (when (< (.distance delta) radius)
+        (swap! app-state assoc :delta delta))))
+  :onPanUpdate 
+  (fn [^g/DragUpdateDetails details] 
+    (let [delta (:delta @app-state)]
+      (when delta (swap! app-state assoc :p1 (.- (.localPosition details) delta)))))
+  :onPanEnd (fn [_] (swap! app-state assoc :delta nil))
+  :child
+  (m/CustomPaint
+   :painter (reify :extends m/CustomPainter
+              (paint [this canvas size]
+                (let [paint (doto (m/Paint)
+                              (-> .-color (set! m.Colors/grey))
+                              (-> .-style (set! m.PaintingStyle/fill)))]
+                  (.drawCircle canvas (:p1 @app-state) radius paint)))
+              (shouldRepaint [this _] true))
+   :child (m/Container)))))
+
+(defn main []
+  (m/runApp (m/MaterialApp :title "Gesture demo" :home (m/Scaffold :body gesture-demo))))
