@@ -3,32 +3,50 @@
             [cljd.flutter.alpha :as f]
             ["package:flutter/gestures.dart" :as g]))
 
-(def radius 20)
+(def radius 30)
 
 (def gesture-demo
 (f/widget
- :state [app-state {:p1 (m/Offset 100 100) :delta nil}]
+ :state [app-state {:vertices [(m/Offset 100 100) (m/Offset 300 100) (m/Offset 300 300)] :delta nil :idx nil}]
  (m/GestureDetector
-  :onPanStart 
-  (fn [^g/DragStartDetails details] 
-    (let [pointer (.localPosition details)
-          delta (.- pointer (:p1 @app-state))]
-      (when (< (.distance delta) radius)
-        (swap! app-state assoc :delta delta))))
-  :onPanUpdate 
-  (fn [^g/DragUpdateDetails details] 
-    (let [delta (:delta @app-state)]
-      (when delta (swap! app-state assoc :p1 (.- (.localPosition details) delta)))))
-  :onPanEnd (fn [_] (swap! app-state assoc :delta nil))
+  :onPanStart
+    (fn [^g/DragStartDetails details]
+      (let [{:keys [vertices]} @app-state
+            pointer (.localPosition details)
+            [[id delta]]
+            (concat
+             (for [[i vertex] (map-indexed vector vertices)
+                   :let [delta (.- pointer vertex)]
+                   :when (< (.distance delta) radius)]
+               [i delta]))]
+        (swap! app-state assoc :idx id :delta delta)))
+  :onPanUpdate
+(fn [^g/DragUpdateDetails details]
+  (let [{:keys [idx delta]} @app-state
+        new-pos (when idx (.- (.localPosition details) delta))]
+    (cond
+      (int? idx)
+      (swap! app-state assoc-in [:vertices idx] new-pos))))
   :child
   (m/CustomPaint
-   :painter (reify :extends m/CustomPainter
-              (paint [this canvas size]
-                (let [paint (doto (m/Paint)
-                              (-> .-color (set! m.Colors/grey))
-                              (-> .-style (set! m.PaintingStyle/fill)))]
-                  (.drawCircle canvas (:p1 @app-state) radius paint)))
-              (shouldRepaint [this _] true))
+   :painter
+   (reify :extends m/CustomPainter
+       (paint [this canvas size]
+              (let [[^m/Offset o ^m/Offset a ^m/Offset b] (:vertices @app-state)
+                    c (.- (.+ b a) o)
+                    paint (doto (m/Paint)
+                            (-> .-color (set! m.Colors/grey))
+                            (-> .-style (set! m.PaintingStyle/fill)))]
+                (doto canvas
+                  (.drawLine o a paint)
+                  (.drawLine o b paint)
+                  (.drawLine b c paint)
+                  (.drawLine a c paint)
+                  (.drawCircle o radius paint)
+                  (.drawCircle a radius paint)
+                  (.drawCircle b radius paint))
+                nil))
+     (shouldRepaint [this _] true))
    :child (m/Container)))))
 
 (defn main []
