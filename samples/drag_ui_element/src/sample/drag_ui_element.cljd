@@ -1,0 +1,176 @@
+(ns sample.drag-ui-element
+  (:require ["package:flutter/material.dart" :as m]
+            [cljd.flutter.alpha :as f]))
+
+(def items
+  [{:name "Spinach Pizza" :total-price-cents 1299 :uuid "1"
+    :image-provider (m/NetworkImage "https://flutter.dev/docs/cookbook/img-files/effects/split-check/Food1.jpg")}
+   {:name "Veggie Delight" :total-price-cents 799 :uuid "2"
+    :image-provider (m/NetworkImage "https://flutter.dev/docs/cookbook/img-files/effects/split-check/Food2.jpg")}
+   {:name "Chicken Parmesan" :total-price-cents 1499 :uuid "3"
+    :image-provider (m/NetworkImage "https://flutter.dev/docs/cookbook/img-files/effects/split-check/Food3.jpg")}])
+
+(def app-bar
+  (f/widget
+   :inherit [m/Theme]
+   (m/AppBar
+    .iconTheme (m/IconThemeData .color (m/Color 0xFFF64209))
+    .title
+    (m/Text "Order Food" .style (.copyWith (-> theme .-textTheme .-headline4)) .fontSize 36 .color (m/Color 0xFFF64209 .fontWeight m.FontWeight/bold)))
+   .backgroundColor (m/Color 0xFFF7F7F7)
+   .elevation 0))
+
+(defn menu-list-item
+  [& {:keys [name price photo-provider is-depressed] :or {is-depressed false name "" price ""}}]
+  (f/widget
+   :inherit [m/Theme]
+  (m/Material
+   .elevation 12.0
+   .borderRadius (m.BorderRadius/circular 20)
+   .child
+   (m/Padding 
+    .padding (m.EdgeInsets/all 12.0)
+    .child
+    (m/Row
+     .mainAxisSize m.MainAxisSize/max
+     .children
+     [(f/nest
+      (m/ClipRRect
+       .borderRadius (m.BorderRadius/circular 12.0)) 
+       (m/SizedBox .width 120 .height 120)
+       m/Center
+       (m/AnimatedContainer
+        .duration (m/Duration .milliseconds 100)
+        .curve m.Curves/easeInOut
+        .height (cond is-depressed 115 :else 120)
+        .width (cond is-depressed 115 :else 120))
+       (m/Image .image photo-provider .fix m.BoxFit/cover))
+      (m/SizedBox .width 30.0)
+      (m/Expanded
+       .child
+       (m/Column .crossAxisAlignment m.CrossAxisAlignment/start
+                 .children [(m/Text name .style (.copyWith (-> theme .-textTheme .-subtitle1?) .fontWeight m.FontWeight/bold .fontSize 18.0))]))])))))
+(defn dragging-list-item
+  [& {:keys [drag-key photo-provider]}]
+  (m/FractionalTransition
+   .translation (m/Offset -0.5 -0.5)
+   .child
+   (m/ClipRRect
+    .key drag-key
+    .borderRadius (m.BorderRadius/circular 12.0)
+    .child
+    (m/SizedBox
+     .height 150
+     .width 150
+     .child
+     (m/Opacity
+      .opacity 0.85
+      .child (m/Image .image photo-provider .fit m.BoxFit/cover))))))
+
+(defn menu-item
+  [& {:keys [item]}]
+  (m/LongPressDraggableItem
+   .data item
+   .dragAnchorStrategy
+   (m/pointerDragAnchorStrategy
+    .feedback
+    (dragging-list-item
+     :drag-key nil;; TODO to change
+     :photo-provider (:image-provider item))
+    :child
+    (menu-list-item item))))
+
+(def menu-list
+  (m.ListView/separated
+   .padding (m.EdgeInsets/all 16.0)
+   .itemCount (count items)
+   .separatorBuilder (fn [ctx, index] (m/SizedBox .height 12.0))
+   .itemBuilder (fn [ctx, index] (menu-item :item (nth items index)))))
+
+(defn customer-cart
+  [& {:keys [has-item highlighted  customer]}] ;;TODO default values for highlited and hasitems
+  (let [text-color (cond highlighted m.Colors/white :else m.Colors/black)]
+    (f/widget
+     :inherit [m/Theme]
+    (m.Transform/scale
+     .scale (cond highlighted 1.075 :else 1.0)
+     .child
+     (m/MaterialApp
+      .elevation (cond highlighted 8.0 :else 4.0)
+      .borderRadius (m.BorderRadius/circular 22.0)
+      .color (cond highlighted (m/Color 0xFFF64209) :else m.Colors/white)
+      .child
+      (m/Padding
+       .padding (m.EdgeInsets/symmetric .horizontal 12.0 .vertical 24.0)
+       .child
+       (m/Column
+        .mainAxisSize m.MainAxisSize/min
+        .children
+        [(m/ClipOval
+          .child (m/SizedBox .width 46 .height 46 .child (m/Image .image (:image-provider customer) .fix m.BoxFit/cover)))
+         (m/SizedBox .height 8.0)
+         (m/Text (:name customer) 
+                 .style (.copyWith (-> theme .-textTheme .-subtitle1?) .color text-color .fontWeight (cond has-item m.FontWeight/normal :else m.FontWeight/bold)))
+         (m/Visibility
+          .visible has-item
+          .maintainState true
+          .maintainAnmiation true
+          .maintainSize true
+          .child
+          (m/Column
+           .children
+           [(m/SizedBox .height 4.0)
+            (m/Text
+             (:formatted-total-item-price customer)
+             .style (m/TextStyle (.copyWith (-> theme .-textTheme .-caption!) .color text-color .fontSize 16.0 .fontWeight m.FontWeight/bold)))
+            (m/SizedBox .height 4.0)
+            (m/Text
+             (str (count (:items customer)) " item" (cond (> (:items customer) 1) "s"))
+             .style (m/TextStyle (.copyWith (-> theme .-textTheme .-subtitle1!) .color text-color .fontSize 12.0)))]))])))))))
+
+(defn person-with-drop-zone
+  [customer]
+  (m/Expanded
+   .child
+   (m/Padding .paddinf (m.EdgeInsets/symmetric .horizontal 6.0))
+   .child
+   (m/DragTarget
+    .builder (fn [context candidate-items rejected-items]
+               (customer-cart :has-item (-> customer :items :is-not-empty)
+                              :highlighted (:is-not-empty candidate-items)
+                              :customer customer))
+    .onAccept (fn [item] (item-dropped-on-customer-card :item item :customer customer)))))
+
+(def people-row
+  (f/widget
+   :inherit [:people]
+   (m/Container
+    .padding (m.EdgeInsets/symmetric .horizontal 8.0 .vertical 20.0)
+    .child (m/Row .children (map person-with-drop-zone @people)))))
+
+(def content
+  (m/Stack
+   .children
+   [(m/Expanded .child menu-list)
+    people-row]))
+
+(def example-drag-and-drop
+  (f/widget
+   :bind {:people [{:name "Malayka"
+                    :image-provider (m/NetworkImage "https://flutter.dev/docs/cookbook/img-files/effects/split-check/Avatar1.jpg")
+                    :item nil}
+                   {:name "Nathan"
+                    :image-provider (m/NetworkImage "https://flutter.dev/docs/cookbook/img-files/effects/split-check/Avatar2.jpg")
+                    :item nil}
+                   {:name "Emilio"
+                    :image-provider (m/NetworkImage "https://flutter.dev/docs/cookbook/img-files/effects/split-check/Avatar3.jpg")}]}
+   (m/Scaffold
+    .backgroundColor (m/Color 0xFFF77F7F7)
+    .appBar app-bar
+    .body content)))
+
+(defn main
+  []
+  (m/runApp
+   (m/MaterialApp .home example-drag-and-drop
+                  .debugShowCheckedModeBanner false)))
